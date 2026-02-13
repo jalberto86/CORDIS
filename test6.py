@@ -3,49 +3,43 @@ import pandas as pd
 from collections import defaultdict
 from tkinter import Tk, filedialog
 
-# Open file dialog to select organization.json
-Tk().withdraw()
-file_path = filedialog.askopenfilename(title="Select organization.json", filetypes=[("JSON files", "*.json")])
-if not file_path:
-    print("No file selected. Exiting.")
-    exit()
-file_name = input("Select an output file name: ")
+# Open one dialog to select multiple files
+root = Tk()
+root.withdraw()
+file_paths = filedialog.askopenfilenames(
+    title="Select one or more organization.json files",
+    filetypes=[("JSON files", "*.json")]
+)
+root.destroy()
 
-# Load JSON
-with open(file_path, "r", encoding="utf-8") as f:
-    org_data = json.load(f)
+# Load all JSON files selected files
+org_data = []
+for path in file_paths:
+    print(f"Loading {path}...")
+    with open(path, "r", encoding="utf-8") as f:
+        org_data.extend(json.load(f))
+if not file_paths:
+    print("No files selected. Exiting.")
+    exit()
+
+file_name = input("Select an output file name: ")
 
 # Step 1: Organize data
 org_info = dict()
 org_projects = defaultdict(set)  # orgID → set of projectIDs
 project_orgs = defaultdict(set)  # projectID → set of orgIDs
-
-for org in org_data:
-    org_id = org["organisationID"]
-    short_name = org.get("shortName", "").strip()
-    country = org.get("country", "").strip()
-    city = org.get("city", "").strip()
-    project_id = org["projectID"]
-
-    # Keep first occurrence of short name if there's a conflict
-    if org_id not in org_info:
-        org_info[org_id] = {
-            "shortName": short_name,
-            "country": country,
-            "city": city
-        }
-
-    org_projects[org_id].add(project_id)
-    project_orgs[project_id].add(org_id)
-
 org_project_costs = defaultdict(lambda: defaultdict(float))
 
 for org in org_data:
-    org_id = org["organisationID"]
+    try:
+        org_id = int(org["organisationID"])
+        project_id = int(org["projectID"])
+    except (KeyError, ValueError, TypeError):
+        continue
+    name = org.get("name", "").strip()
     short_name = org.get("shortName", "").strip()
     country = org.get("country", "").strip()
     city = org.get("city", "").strip()
-    project_id = org["projectID"]
 
     # Safe cost parsing
     try:
@@ -53,9 +47,10 @@ for org in org_data:
     except ValueError:
         cost = 0.0
 
-    # Keep first occurrence of short name
+    # Store only the first occurrence of organisationID to avoid overwriting.
     if org_id not in org_info:
         org_info[org_id] = {
+            "name": name,
             "shortName": short_name,
             "country": country,
             "city": city
@@ -83,6 +78,7 @@ rows = []
 for org_id in all_orgs:
     row = {
         "organisationID": org_id,
+        "Name": org_info[org_id]["name"],
         "shortName": org_info[org_id]["shortName"],
         "country": org_info[org_id]["country"],
         "city": org_info[org_id]["city"]
