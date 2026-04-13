@@ -1,1 +1,4 @@
 *.csv
+*.xls
+*.xlsx
+EXTRACTION_*/
